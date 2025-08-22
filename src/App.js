@@ -53,9 +53,9 @@ function App() {
       {/* CONTACT */}
       <section id="contact" style={{maxWidth: '900px', margin: '40px auto', padding: '0 20px'}}>
         <h3>Contact Us</h3>
-        <p>Email: <a href="mailto:info@geminielectricals.co.nz">info@geminielectricals.co.nz</a></p>
-        <p>Phone: <a href="tel:+64210123456">021 012 3456</a></p>
-        <p>Or use our <a href="mailto:info@geminielectricals.co.nz">email form</a> to get a free quote!</p>
+        <p>Email: <a href="mailto:mail.geminielectrical.co.nz">mail.geminielectrical.co.nz</a></p>
+        <p>Phone: <a href="tel:+64273425539">0273425539</a></p>
+        <p>Or use our <a href="mailto:mail.geminielectrical.co.nz">email form</a> to get a free quote!</p>
       </section>
 
       {/* FOOTER */}
