@@ -8,7 +8,7 @@ function App() {
       {/* HEADER */}
       <header style={{backgroundColor: "#102b3f", color: "#fff", padding: "20px 0"}}>
         <div style={{maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <h1>Gemini Electricals</h1>
+          <h1>Gemini Electrical</h1>
           <nav>
             <a href="#about" style={{color: "#fff", margin: '0 12px'}}>About</a>
             <a href="#services" style={{color: "#fff", margin: '0 12px'}}>Services</a>
@@ -53,9 +53,9 @@ function App() {
       {/* CONTACT */}
       <section id="contact" style={{maxWidth: '900px', margin: '40px auto', padding: '0 20px'}}>
         <h3>Contact Us</h3>
-        <p>Email: <a href="mailto:mail.geminielectrical.co.nz">mail.geminielectrical.co.nz</a></p>
+        <p>Email: <a href="mailto:mail@geminielectrical.co.nz">mail@geminielectrical.co.nz</a></p>
         <p>Phone: <a href="tel:+64273425539">0273425539</a></p>
-        <p>Or use our <a href="mailto:mail.geminielectrical.co.nz">email form</a> to get a free quote!</p>
+        <p>Or use our <a href="mailto:mail@geminielectrical.co.nz">email form</a> to get a free quote!</p>
       </section>
 
       {/* FOOTER */}
