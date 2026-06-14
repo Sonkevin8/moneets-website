@@ -45,8 +45,18 @@ const services = [
   },
 ];
 
+const navLinks = [
+  { href: '#about',   label: 'About' },
+  { href: '#services', label: 'Services' },
+  { href: '#why-us',  label: 'Why Us' },
+  { href: '#contact', label: 'Contact Us' },
+];
+
 function App() {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = () => setMenuOpen(false);
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -59,17 +69,56 @@ function App() {
     <div>
       {/* ── NAV ── */}
       <nav className="nav">
-        <a href="#hero" className="nav-logo">
+        <a href="#hero" className="nav-logo" onClick={closeMenu}>
           <span className="nav-logo-icon">⚡</span>
           <span className="nav-logo-text">Gemini <span>Electrical</span></span>
         </a>
+
+        {/* Desktop links */}
         <div className="nav-links">
-          <a href="#about">About</a>
-          <a href="#services">Services</a>
-          <a href="#why-us">Why Us</a>
+          {navLinks.map(l => (
+            <a key={l.href} href={l.href}>{l.label}</a>
+          ))}
           <a href="#contact" className="nav-cta">Get a Quote</a>
         </div>
+
+        {/* Hamburger button */}
+        <button
+          className={`hamburger${menuOpen ? ' open' : ''}`}
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label="Toggle menu"
+        >
+          <span /><span /><span />
+        </button>
       </nav>
+
+      {/* ── MOBILE MENU OVERLAY ── */}
+      <div className={`mobile-menu${menuOpen ? ' active' : ''}`}>
+        <button className="mobile-menu-close" onClick={closeMenu} aria-label="Close menu">✕</button>
+        <div className="mobile-menu-logo">
+          <span style={{fontSize: '2rem', filter: 'drop-shadow(0 0 10px #fbb040)'}}>⚡</span>
+          <span style={{color: '#fff', fontWeight: 900, fontSize: '1.3rem'}}>Gemini <span style={{color: '#fbb040'}}>Electrical</span></span>
+        </div>
+        <nav className="mobile-menu-links">
+          {navLinks.map(l => (
+            <a key={l.href} href={l.href} onClick={closeMenu}>{l.label}</a>
+          ))}
+        </nav>
+        <div className="mobile-menu-services">
+          <p className="mobile-menu-services-title">Our Services</p>
+          {services.map(s => (
+            <a key={s.title} href="#services" className="mobile-menu-service-item" onClick={closeMenu}>
+              <span>{s.icon}</span>{s.title}
+            </a>
+          ))}
+        </div>
+        <a href="#contact" className="btn-primary mobile-menu-cta" onClick={closeMenu}>Request a Free Quote</a>
+        <div className="mobile-menu-contact">
+          <a href="tel:+64273425539">📞 027 342 5539</a>
+          <a href="mailto:mail@geminielectrical.co.nz">✉ mail@geminielectrical.co.nz</a>
+        </div>
+      </div>
+      {menuOpen && <div className="mobile-menu-backdrop" onClick={closeMenu} />}
 
       {/* ── HERO ── */}
       <section className="hero" id="hero">
