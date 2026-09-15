@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
+import { ADMIN_EMAIL, isSupabaseConfigured, supabase } from './supabaseClient';
 
 const ADMIN_USERNAME = 'Gemini';
-const ADMIN_PASSWORD = '1991';
 const CONTENT_KEY = 'gemini-site-content';
 const CSS_KEY = 'gemini-site-css';
 
@@ -30,8 +30,12 @@ function loadValue(key, fallback) {
   try { return window.localStorage.getItem(key) ? JSON.parse(window.localStorage.getItem(key)) : fallback; } catch (error) { return fallback; }
 }
 
+function mergeContent(content) {
+  return { ...defaultContent, ...content };
+}
+
 function App() {
-  const [content, setContent] = useState(() => loadValue(CONTENT_KEY, defaultContent));
+  const [content, setContent] = useState(() => mergeContent(loadValue(CONTENT_KEY, defaultContent)));
   const [customCss, setCustomCss] = useState(() => loadValue(CSS_KEY, ''));
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,6 +45,18 @@ function App() {
     const handlePopState = () => setIsAdmin(window.location.pathname === '/admin');
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined;
+    let active = true;
+    supabase.from('site_content').select('content, custom_css').eq('id', 1).maybeSingle().then(({ data }) => {
+      if (active && data) {
+        setContent(mergeContent(data.content));
+        setCustomCss(data.custom_css || '');
+      }
+    });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -70,7 +86,7 @@ function App() {
       <section className="section services-section" id="services"><div className="section-inner"><span className="section-tag">{content.servicesTag}</span><h2 className="section-title">{splitTitle(content.servicesTitle)}</h2><p className="section-desc">{content.servicesDescription}</p><div className="services-grid">{content.services.map(service => <div className="service-card" key={service[1]}><span className="service-icon">{service[0]}</span><h4>{service[1]}</h4><p>{service[2]}</p></div>)}</div></div></section>
       <section className="section" id="why-us"><div className="section-inner why-section-inner"><span className="section-tag">{content.whyTag}</span><h2 className="section-title">{splitTitle(content.whyTitle)}</h2><p className="section-desc">{content.whyDescription}</p><div className="why-grid">{content.reasons.map(reason => <div className="why-card" key={reason[1]}><div className="why-icon">{reason[0]}</div><h4>{reason[1]}</h4><p>{reason[2]}</p></div>)}</div></div></section>
       <section className="section contact-section" id="contact"><div className="section-inner"><span className="section-tag">{content.contactTag}</span><h2 className="section-title">{splitTitle(content.contactTitle)}</h2><p className="section-desc">{content.contactDescription}</p><div className="contact-grid"><div><ContactItem icon="📧" title="Email">{content.email}</ContactItem><ContactItem icon="📞" title="Phone">{content.phone}</ContactItem><ContactItem icon="📍" title="Location">{content.location}</ContactItem><ContactItem icon="🕐" title="Hours">{content.hours}</ContactItem></div><form className="contact-form" onSubmit={handleSubmit}><input type="text" name="name" placeholder="Your Name" value={form.name} onChange={handleChange} required /><input type="email" name="email" placeholder="Your Email" value={form.email} onChange={handleChange} required /><textarea name="message" placeholder="Describe your job or question..." value={form.message} onChange={handleChange} required /><button type="submit" className="btn-primary">Send Message →</button></form></div></div></section>
-      <footer className="footer"><div className="footer-top"><a href="#about">About</a><a href="#services">Services</a><a href="#why-us">Why Us</a><a href="#contact">Contact</a><a href={`tel:${content.phone.replace(/\D/g, '')}`}>{content.phone}</a></div><div className="footer-divider" /><div>&copy; {new Date().getFullYear()} {content.brand}. All Rights Reserved.</div></footer>
+      <footer className="footer"><div className="footer-top"><a href="#about">About</a><a href="#services">Services</a><a href="#why-us">Why Us</a><a href="#contact">Contact</a><a href={`tel:${content.phone.replace(/\D/g, '')}`}>{content.phone}</a></div><div className="footer-divider" /><div>&copy; {new Date().getFullYear()} {content.brand}. All Rights Reserved.</div><a className="admin-entry" href="/admin" title="Admin login" aria-label="Admin login">•</a></footer>
     </div>
   );
 }
@@ -80,16 +96,38 @@ function ContactItem({ icon, title, children }) {
 }
 
 function AdminPanel({ content, setContent, customCss, setCustomCss, onExit }) {
-  const [authenticated, setAuthenticated] = useState(sessionStorage.getItem('gemini-admin') === 'true');
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(isSupabaseConfigured);
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [draft, setDraft] = useState(JSON.stringify(content, null, 2));
   const [cssDraft, setCssDraft] = useState(customCss);
   const [message, setMessage] = useState('');
-  const login = event => { event.preventDefault(); if (credentials.username === ADMIN_USERNAME && credentials.password === ADMIN_PASSWORD) { sessionStorage.setItem('gemini-admin', 'true'); setAuthenticated(true); } else setMessage('Incorrect username or password.'); };
-  const save = event => { event.preventDefault(); try { const nextContent = JSON.parse(draft); setContent(nextContent); setCustomCss(cssDraft); localStorage.setItem(CONTENT_KEY, JSON.stringify(nextContent)); localStorage.setItem(CSS_KEY, JSON.stringify(cssDraft)); setMessage('Changes saved.'); } catch (error) { setMessage('The content editor contains invalid JSON.'); } };
+  useEffect(() => {
+    if (!supabase) return undefined;
+    supabase.auth.getSession().then(({ data }) => { setAuthenticated(Boolean(data.session)); setCheckingSession(false); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setAuthenticated(Boolean(session)));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+  const login = async event => {
+    event.preventDefault();
+    if (credentials.username !== ADMIN_USERNAME) { setMessage('Use Gemini as the username.'); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: credentials.password });
+    if (error) setMessage('Incorrect username or password.');
+  };
+  const save = async event => {
+    event.preventDefault();
+    try {
+      const nextContent = JSON.parse(draft);
+      const { error } = await supabase.from('site_content').upsert({ id: 1, content: nextContent, custom_css: cssDraft, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setContent(mergeContent(nextContent)); setCustomCss(cssDraft); setMessage('Changes saved.');
+    } catch (error) { setMessage(error instanceof SyntaxError ? 'The content editor contains invalid JSON.' : error.message); }
+  };
   const reset = () => { setDraft(JSON.stringify(defaultContent, null, 2)); setCssDraft(''); setMessage('Reset ready. Click Save Changes to apply it.'); };
+  if (!isSupabaseConfigured) return <main className="admin-shell"><div className="admin-login"><div className="admin-mark">⚡</div><p className="admin-kicker">Gemini Electrical</p><h1>Supabase setup required</h1><p className="admin-help">Add the Supabase values from <strong>.env.example</strong> to your local environment or hosting settings before signing in.</p><button className="admin-back" type="button" onClick={onExit}>Back to website</button></div></main>;
+  if (checkingSession) return <main className="admin-shell"><div className="admin-login"><h1>Loading admin...</h1></div></main>;
   if (!authenticated) return <main className="admin-shell"><form className="admin-login" onSubmit={login}><div className="admin-mark">⚡</div><p className="admin-kicker">Gemini Electrical</p><h1>Admin login</h1><p className="admin-help">Sign in to edit the website content and CSS.</p><label>Username<input autoFocus value={credentials.username} onChange={event => setCredentials({ ...credentials, username: event.target.value })} /></label><label>Password<input type="password" value={credentials.password} onChange={event => setCredentials({ ...credentials, password: event.target.value })} /></label>{message && <p className="admin-error">{message}</p>}<button className="admin-save" type="submit">Sign in</button><button className="admin-back" type="button" onClick={onExit}>Back to website</button></form></main>;
-  return <main className="admin-shell"><div className="admin-editor"><header className="admin-header"><div><p className="admin-kicker">Gemini Electrical</p><h1>Website editor</h1></div><button className="admin-back" type="button" onClick={onExit}>View website</button></header><p className="admin-help">Edit the page text as JSON and add CSS overrides. Changes are stored in this browser.</p><form onSubmit={save}><label>Page content<textarea className="admin-code" value={draft} onChange={event => setDraft(event.target.value)} spellCheck="false" /></label><label>Custom CSS<textarea className="admin-code css-editor" value={cssDraft} onChange={event => setCssDraft(event.target.value)} spellCheck="false" placeholder=".hero { background: #111; }" /></label><div className="admin-actions"><button className="admin-save" type="submit">Save Changes</button><button className="admin-reset" type="button" onClick={reset}>Reset defaults</button>{message && <span className="admin-success">{message}</span>}</div></form></div></main>;
+  return <main className="admin-shell"><div className="admin-editor"><header className="admin-header"><div><p className="admin-kicker">Gemini Electrical</p><h1>Website editor</h1></div><div><button className="admin-back" type="button" onClick={() => supabase.auth.signOut()}>Sign out</button><button className="admin-back" type="button" onClick={onExit}>View website</button></div></header><p className="admin-help">Edit the page text as JSON and add CSS overrides. Changes are stored in Supabase.</p><form onSubmit={save}><label>Page content<textarea className="admin-code" value={draft} onChange={event => setDraft(event.target.value)} spellCheck="false" /></label><label>Custom CSS<textarea className="admin-code css-editor" value={cssDraft} onChange={event => setCssDraft(event.target.value)} spellCheck="false" placeholder=".hero { background: #111; }" /></label><div className="admin-actions"><button className="admin-save" type="submit">Save Changes</button><button className="admin-reset" type="button" onClick={reset}>Reset defaults</button>{message && <span className="admin-success">{message}</span>}</div></form></div></main>;
 }
 
 export default App;

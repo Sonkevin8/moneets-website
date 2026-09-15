@@ -45,6 +45,18 @@ You can learn more in the [Create React App documentation](https://facebook.gith
 
 To learn React, check out the [React documentation](https://reactjs.org/).
 
+## Supabase admin editor
+
+The admin editor is available at `/admin` and uses Supabase Auth plus a protected `site_content` table.
+
+1. Create a Supabase project.
+2. In SQL Editor, run [`supabase/schema.sql`](supabase/schema.sql).
+3. In Authentication > Users, create a user with email `gemini@geminielectrical.co.nz` and password `1991`.
+4. Copy `.env.example` to `.env.local` and replace the Supabase URL and anon key with values from Project Settings > API.
+5. Start the app with `npm start`, then open `http://localhost:3000/admin` and use username `Gemini` with the password from step 3.
+
+For production, add the same `REACT_APP_*` values to the hosting provider's environment settings. Never commit `.env.local` or a Supabase service-role key.
+
 ### Code Splitting
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)

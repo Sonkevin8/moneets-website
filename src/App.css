@@ -588,6 +588,22 @@ body {
   max-width: 400px;
 }
 
+.admin-entry {
+  color: rgba(142,180,200,0.22);
+  display: inline-block;
+  font-size: 1.2rem;
+  line-height: 1;
+  margin-top: 12px;
+  padding: 4px 8px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.admin-entry:hover,
+.admin-entry:focus-visible {
+  color: #fbb040;
+}
+
 /* ── HAMBURGER ── */
 .hamburger {
   display: none;
