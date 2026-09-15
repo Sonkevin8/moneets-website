@@ -148,7 +148,7 @@ function AdminPanel({ content, setContent, customCss, setCustomCss, onExit }) {
     try {
       let backgroundPhotos = easyDraft.backgroundPhotos || [];
       if (backgroundFiles.length) {
-        if (backgroundFiles.length !== 6) throw new Error('Please choose exactly 6 photos for the carousel.');
+        if (backgroundFiles.length > 6) throw new Error('Please choose no more than 6 photos.');
         const uploadedPhotos = await Promise.all(backgroundFiles.map(async (file, index) => {
           const path = `${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
           const { error: uploadError } = await supabase.storage.from('site-backgrounds').upload(path, file, { upsert: true, contentType: file.type });
@@ -177,7 +177,7 @@ function AdminPanel({ content, setContent, customCss, setCustomCss, onExit }) {
 function EditorField({ label, value, onChange, area = false }) {
   const Input = area ? 'textarea' : 'input';
   const choosePhotos = event => window.dispatchEvent(new CustomEvent('background-files-selected', { detail: Array.from(event.target.files || []).slice(0, 6) }));
-  return <label className="editor-field">{label}<Input value={value || ''} onChange={event => onChange(event.target.value)} />{label === 'Business name' && <><small className="photo-label">Hero background: choose exactly 6 photos</small><input className="photo-picker" type="file" accept="image/*" multiple onChange={choosePhotos} /></>}</label>;
+  return <label className="editor-field">{label}<Input value={value || ''} onChange={event => onChange(event.target.value)} />{label === 'Business name' && <><small className="photo-label">Hero background: choose up to 6 photos</small><input className="photo-picker" type="file" accept="image/*" multiple onChange={choosePhotos} /></>}</label>;
 }
 
 function ColorField({ label, value, onChange }) {
