@@ -125,6 +125,7 @@ function AdminPanel({ content, setContent, customCss, setCustomCss, onExit }) {
   const [easyDraft, setEasyDraft] = useState(content);
   const [themeDraft, setThemeDraft] = useState(content.theme);
   const [backgroundFiles, setBackgroundFiles] = useState([]);
+  const [removedBackgroundPhotos, setRemovedBackgroundPhotos] = useState([]);
   const [message, setMessage] = useState('');
   useEffect(() => {
     if (!supabase) return undefined;
@@ -146,38 +147,49 @@ function AdminPanel({ content, setContent, customCss, setCustomCss, onExit }) {
   const save = async event => {
     event.preventDefault();
     try {
-      let backgroundPhotos = easyDraft.backgroundPhotos || [];
+      let backgroundPhotos = [...(easyDraft.backgroundPhotos || [])];
       if (backgroundFiles.length) {
-        if (backgroundFiles.length > 6) throw new Error('Please choose no more than 6 photos.');
         const uploadedPhotos = await Promise.all(backgroundFiles.map(async (file, index) => {
+          if (!file) return backgroundPhotos[index] || null;
           const path = `${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
           const { error: uploadError } = await supabase.storage.from('site-backgrounds').upload(path, file, { upsert: true, contentType: file.type });
           if (uploadError) throw uploadError;
           const { data } = supabase.storage.from('site-backgrounds').getPublicUrl(path);
           return data.publicUrl;
         }));
-        backgroundPhotos = uploadedPhotos;
+        backgroundPhotos = uploadedPhotos.filter(Boolean);
+      }
+      if (removedBackgroundPhotos.length) {
+        const paths = removedBackgroundPhotos.map(photo => photo.split('/storage/v1/object/public/site-backgrounds/')[1]).filter(Boolean);
+        if (paths.length) await supabase.storage.from('site-backgrounds').remove(paths);
       }
       const nextContent = { ...easyDraft, theme: themeDraft, backgroundPhotos };
       const { error } = await supabase.from('site_content').upsert({ id: 1, content: nextContent, custom_css: cssDraft, updated_at: new Date().toISOString() });
       if (error) throw error;
-      setContent(mergeContent(nextContent)); setCustomCss(cssDraft); setDraft(JSON.stringify(nextContent, null, 2)); setBackgroundFiles([]); setMessage('All changes saved.');
+      setContent(mergeContent(nextContent)); setCustomCss(cssDraft); setDraft(JSON.stringify(nextContent, null, 2)); setBackgroundFiles([]); setRemovedBackgroundPhotos([]); setMessage('All changes saved.');
     } catch (error) { setMessage(error instanceof SyntaxError ? 'The content editor contains invalid JSON.' : error.message); }
   };
   const updateEasy = (field, value) => setEasyDraft(current => ({ ...current, [field]: value }));
   const updateService = (index, column, value) => setEasyDraft(current => ({ ...current, services: current.services.map((service, serviceIndex) => serviceIndex === index ? service.map((item, itemIndex) => itemIndex === column ? value : item) : service) }));
-  const reset = () => { setEasyDraft(defaultContent); setThemeDraft(defaultContent.theme); setDraft(JSON.stringify(defaultContent, null, 2)); setCssDraft(''); setBackgroundFiles([]); setMessage('Reset ready. Click Save Changes to apply it.'); };
+  const reset = () => { setEasyDraft(defaultContent); setThemeDraft(defaultContent.theme); setDraft(JSON.stringify(defaultContent, null, 2)); setCssDraft(''); setBackgroundFiles([]); setRemovedBackgroundPhotos([]); setMessage('Reset ready. Click Save Changes to apply it.'); };
   if (!isSupabaseConfigured) return <main className="admin-shell"><div className="admin-login"><div className="admin-mark">⚡</div><p className="admin-kicker">Gemini Electrical</p><h1>Supabase setup required</h1><p className="admin-help">Add the Supabase values from <strong>.env.example</strong> to your local environment or hosting settings before signing in.</p><button className="admin-back" type="button" onClick={onExit}>Back to website</button></div></main>;
   if (checkingSession) return <main className="admin-shell"><div className="admin-login"><h1>Loading admin...</h1></div></main>;
   if (!authenticated) return <main className="admin-shell"><form className="admin-login" onSubmit={login}><div className="admin-mark">⚡</div><p className="admin-kicker">Gemini Electrical</p><h1>Admin login</h1><p className="admin-help">Sign in to edit the website content and CSS.</p><label>Username<input autoFocus value={credentials.username} onChange={event => setCredentials({ ...credentials, username: event.target.value })} /></label><label>Password<input type="password" value={credentials.password} onChange={event => setCredentials({ ...credentials, password: event.target.value })} /></label>{message && <p className="admin-error">{message}</p>}<button className="admin-save" type="submit">Sign in</button><button className="admin-back" type="button" onClick={onExit}>Back to website</button></form></main>;
   const handleAdvancedContent = event => { const value = event.target.value; setDraft(value); try { setEasyDraft(mergeContent(JSON.parse(value))); } catch (error) { setMessage('Finish the JSON before saving.'); } };
+  const handlePhotoChange = (index, file) => { const existingPhoto = easyDraft.backgroundPhotos[index]; if (existingPhoto) setRemovedBackgroundPhotos(current => [...current, existingPhoto]); setBackgroundFiles(current => { const next = [...current]; next[index] = file; return next; }); };
+  const handlePhotoRemove = index => { const photo = easyDraft.backgroundPhotos[index]; if (photo) setRemovedBackgroundPhotos(current => [...current, photo]); setEasyDraft(current => ({ ...current, backgroundPhotos: current.backgroundPhotos.filter((_item, photoIndex) => photoIndex !== index) })); setBackgroundFiles(current => { const next = [...current]; next.splice(index, 1); return next; }); };
+  window.__adminPhotoState = { photos: easyDraft.backgroundPhotos, onChange: handlePhotoChange, onRemove: handlePhotoRemove };
   return <main className="admin-shell"><div className="admin-editor"><header className="admin-header"><div><p className="admin-kicker">Gemini Electrical</p><h1>Easy website editor</h1></div><div><button className="admin-back" type="button" onClick={() => supabase.auth.signOut()}>Sign out</button><button className="admin-back" type="button" onClick={onExit}>View website</button></div></header><p className="admin-help">Change the words and colors below. You do not need coding experience. Click Save Changes when finished.</p><form onSubmit={save}><section className="easy-section"><h2>Main page</h2><div className="easy-grid"><EditorField label="Business name" value={easyDraft.brand} onChange={value => updateEasy('brand', value)} /><EditorField label="Hero badge" value={easyDraft.badge} onChange={value => updateEasy('badge', value)} /><EditorField label="Main headline" value={easyDraft.heroTitle} onChange={value => updateEasy('heroTitle', value)} /><EditorField label="Headline highlight" value={easyDraft.heroAccent} onChange={value => updateEasy('heroAccent', value)} /><EditorField label="Hero description" value={easyDraft.heroDescription} onChange={value => updateEasy('heroDescription', value)} area /><EditorField label="Main button" value={easyDraft.primaryCta} onChange={value => updateEasy('primaryCta', value)} /><EditorField label="Secondary button" value={easyDraft.secondaryCta} onChange={value => updateEasy('secondaryCta', value)} /></div></section><section className="easy-section"><h2>About section</h2><div className="easy-grid"><EditorField label="Section label" value={easyDraft.aboutTag} onChange={value => updateEasy('aboutTag', value)} /><EditorField label="Heading" value={easyDraft.aboutTitle} onChange={value => updateEasy('aboutTitle', value)} /><EditorField label="Description" value={easyDraft.aboutDescription} onChange={value => updateEasy('aboutDescription', value)} area /><EditorField label="About text" value={easyDraft.aboutText} onChange={value => updateEasy('aboutText', value)} area /></div></section><section className="easy-section"><h2>Services</h2>{easyDraft.services.map((service, index) => <div className="service-edit-row" key={index}><EditorField label="Icon" value={service[0]} onChange={value => updateService(index, 0, value)} /><EditorField label="Service name" value={service[1]} onChange={value => updateService(index, 1, value)} /><EditorField label="Description" value={service[2]} onChange={value => updateService(index, 2, value)} area /></div>)}</section><section className="easy-section"><h2>Contact details</h2><div className="easy-grid"><EditorField label="Email" value={easyDraft.email} onChange={value => updateEasy('email', value)} /><EditorField label="Phone" value={easyDraft.phone} onChange={value => updateEasy('phone', value)} /><EditorField label="Location" value={easyDraft.location} onChange={value => updateEasy('location', value)} /><EditorField label="Opening hours" value={easyDraft.hours} onChange={value => updateEasy('hours', value)} /><EditorField label="Contact button" value={easyDraft.formButton} onChange={value => updateEasy('formButton', value)} /></div></section><section className="easy-section"><h2>Colors</h2><div className="color-grid"><ColorField label="Accent color" value={themeDraft.accent} onChange={value => setThemeDraft({ ...themeDraft, accent: value })} /><ColorField label="Dark color" value={themeDraft.dark} onChange={value => setThemeDraft({ ...themeDraft, dark: value })} /><ColorField label="Page background" value={themeDraft.page} onChange={value => setThemeDraft({ ...themeDraft, page: value })} /><ColorField label="Text color" value={themeDraft.text} onChange={value => setThemeDraft({ ...themeDraft, text: value })} /></div></section><details className="advanced-editor"><summary>Advanced editing</summary><p className="admin-help">Use these only if you need to edit fields not shown above or add custom CSS rules.</p><label>All page content<textarea className="admin-code" value={draft} onChange={handleAdvancedContent} spellCheck="false" /></label><label>Custom CSS<textarea className="admin-code css-editor" value={cssDraft} onChange={event => setCssDraft(event.target.value)} spellCheck="false" placeholder=".hero { background: #111; }" /></label></details><div className="admin-actions"><button className="admin-save" type="submit">Save Changes</button><button className="admin-reset" type="button" onClick={reset}>Reset defaults</button>{message && <span className="admin-success">{message}</span>}</div></form></div></main>;
 }
 
-function EditorField({ label, value, onChange, area = false }) {
+function EditorField({ label, value, onChange, area = false, photos, onPhotoChange, onPhotoRemove }) {
   const Input = area ? 'textarea' : 'input';
-  const choosePhotos = event => window.dispatchEvent(new CustomEvent('background-files-selected', { detail: Array.from(event.target.files || []).slice(0, 6) }));
-  return <label className="editor-field">{label}<Input value={value || ''} onChange={event => onChange(event.target.value)} />{label === 'Business name' && <><small className="photo-label">Hero background: choose up to 6 photos</small><input className="photo-picker" type="file" accept="image/*" multiple onChange={choosePhotos} /></>}</label>;
+  const photoState = window.__adminPhotoState;
+  return <label className="editor-field">{label}<Input value={value || ''} onChange={event => onChange(event.target.value)} />{(photos || label === 'Business name') && photoState && <BackgroundPhotoManager photos={photos || photoState.photos} onPhotoChange={onPhotoChange || photoState.onChange} onPhotoRemove={onPhotoRemove || photoState.onRemove} />}</label>;
+}
+
+function BackgroundPhotoManager({ photos, onPhotoChange, onPhotoRemove }) {
+  return <div className="photo-manager"><small className="photo-label">Hero background photos. Replace or remove each image, then click Save Changes.</small>{Array.from({ length: 6 }, (_, index) => <div className="photo-slot" key={index}>{photos[index] ? <img src={photos[index]} alt={`Carousel photo ${index + 1}`} /> : <span className="photo-empty">Empty slot</span>}<span className="photo-slot-label">Photo {index + 1}</span><input className="photo-picker" type="file" accept="image/*" onChange={event => onPhotoChange(index, event.target.files[0])} />{photos[index] && <button className="photo-remove" type="button" onClick={() => onPhotoRemove(index)}>Remove</button>}</div>)}</div>;
 }
 
 function ColorField({ label, value, onChange }) {
