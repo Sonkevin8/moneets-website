@@ -993,6 +993,24 @@ body {
   grid-column: 1 / -1;
 }
 
+.carousel-speed {
+  color: #2d4f63;
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 10px;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+
+.carousel-speed input {
+  border: 1px solid #cddde6;
+  border-radius: 5px;
+  color: #16334a;
+  padding: 7px;
+  width: 72px;
+}
+
 .photo-slot {
   background: #f4f7fa;
   border: 1px solid #dbe7ee;
