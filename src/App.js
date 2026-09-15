@@ -189,7 +189,7 @@ function EditorField({ label, value, onChange, area = false, photos, onPhotoChan
 }
 
 function BackgroundPhotoManager({ photos, onPhotoChange, onPhotoRemove }) {
-  return <div className="photo-manager"><small className="photo-label">Hero background photos. Replace or remove each image, then click Save Changes.</small>{Array.from({ length: 6 }, (_, index) => <div className="photo-slot" key={index}>{photos[index] ? <img src={photos[index]} alt={`Carousel photo ${index + 1}`} /> : <span className="photo-empty">Empty slot</span>}<span className="photo-slot-label">Photo {index + 1}</span><input className="photo-picker" type="file" accept="image/*" onChange={event => onPhotoChange(index, event.target.files[0])} />{photos[index] && <button className="photo-remove" type="button" onClick={() => onPhotoRemove(index)}>Remove</button>}</div>)}</div>;
+  return <div className="photo-manager"><small className="photo-label">Hero background photos. Replace or remove each image, then click Save Changes.</small>{Array.from({ length: 6 }, (_, index) => <div className="photo-slot" key={index}>{photos[index] ? <img src={photos[index]} alt={`Carousel ${index + 1}`} /> : <span className="photo-empty">Empty slot</span>}<span className="photo-slot-label">Photo {index + 1}</span><input className="photo-picker" type="file" accept="image/*" onChange={event => onPhotoChange(index, event.target.files[0])} />{photos[index] && <button className="photo-remove" type="button" onClick={() => onPhotoRemove(index)}>Remove</button>}</div>)}</div>;
 }
 
 function ColorField({ label, value, onChange }) {
